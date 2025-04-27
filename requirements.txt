@@ -1,0 +1,8 @@
+flask==3.0.2
+Pillow==11.0.0
+torch==2.7.0
+diffusers==0.33.1
+SpeechRecognition==3.14.2
+gTTS==2.5.4
+transformers==4.51.3
+deep-translator==1.11.4 

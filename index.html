@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>INFINIA - Yapay Zeka Görsel Oluşturucu</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: #18181b;
+        }
+        .glass {
+            background: rgba(36, 37, 46, 0.85);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+            backdrop-filter: blur(8px);
+            border-radius: 1.5rem;
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+        .dark-input {
+            background: #23232b;
+            color: #f3f4f6;
+            border: 1px solid #333;
+        }
+        .dark-input:focus {
+            border-color: #6366f1;
+            outline: none;
+        }
+        .settings-panel {
+            background: rgba(28, 29, 35, 0.95);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 1rem;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center py-12">
+    <div class="container mx-auto px-4">
+        <header class="text-center mb-12">
+            <h1 class="text-5xl font-extrabold text-white tracking-tight mb-2 drop-shadow-lg">INFINIA</h1>
+            <p class="text-gray-300 text-lg font-medium">Yapay Zeka Gelecek Görsel Oluşturucu</p>
+        </header>
+
+        <div class="max-w-4xl mx-auto glass p-8">
+            <div class="mb-8">
+                <div class="flex items-center mb-4">
+                    <input type="text" id="promptInput" class="flex-1 p-3 rounded-l-lg dark-input" placeholder="Görsel için açıklama yazın...">
+                    <button id="micButton" class="p-3 bg-indigo-600 text-white hover:bg-indigo-700 transition-colors">
+                        <i class="fas fa-microphone"></i>
+                    </button>
+                    <button id="generateButton" class="p-3 bg-emerald-500 text-white rounded-r-lg hover:bg-emerald-600 transition-colors font-semibold px-6">
+                        Oluştur
+                    </button>
+                </div>
+
+                <!-- Ayarlar Paneli -->
+                <div class="settings-panel p-4 mt-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <!-- Boyut Ayarları -->
+                        <div class="space-y-2">
+                            <label class="block text-gray-300 text-sm font-medium">Görsel Boyutu</label>
+                            <div class="flex space-x-2">
+                                <input type="number" id="widthInput" value="512" min="256" max="1024" step="64" class="dark-input w-full p-2 rounded text-sm" placeholder="Genişlik">
+                                <input type="number" id="heightInput" value="512" min="256" max="1024" step="64" class="dark-input w-full p-2 rounded text-sm" placeholder="Yükseklik">
+                            </div>
+                        </div>
+
+                        <!-- Kalite Ayarları -->
+                        <div class="space-y-2">
+                            <label class="block text-gray-300 text-sm font-medium">Kalite Ayarları</label>
+                            <div class="flex space-x-2">
+                                <input type="number" id="stepsInput" value="50" min="20" max="150" class="dark-input w-full p-2 rounded text-sm" placeholder="Adım Sayısı">
+                                <input type="number" id="guidanceInput" value="7.5" min="1" max="20" step="0.5" class="dark-input w-full p-2 rounded text-sm" placeholder="Guidance Scale">
+                            </div>
+                        </div>
+
+                        <!-- Seed Kontrolü -->
+                        <div class="space-y-2">
+                            <label class="block text-gray-300 text-sm font-medium">Seed Kontrolü</label>
+                            <div class="flex space-x-2">
+                                <input type="number" id="seedInput" value="-1" class="dark-input w-full p-2 rounded text-sm" placeholder="Seed (-1 = Rastgele)">
+                                <button id="randomSeedButton" class="p-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors">
+                                    <i class="fas fa-random"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Negative Prompt -->
+                    <div class="mt-4">
+                        <label class="block text-gray-300 text-sm font-medium mb-2">Negative Prompt</label>
+                        <input type="text" id="negativePromptInput" class="dark-input w-full p-2 rounded text-sm" 
+                            value="blurry, bad quality, worst quality, text, watermark" 
+                            placeholder="İstenmeyen özellikler...">
+                    </div>
+                </div>
+            </div>
+
+            <div id="loadingSpinner" class="hidden">
+                <div class="flex justify-center items-center">
+                    <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-400"></div>
+                </div>
+                <p class="text-center mt-4 text-gray-400">Görsel oluşturuluyor, lütfen bekleyin...</p>
+            </div>
+
+            <div id="resultContainer" class="hidden">
+                <div class="border border-gray-700 rounded-lg p-4 mb-4 bg-gray-900">
+                    <img id="generatedImage" class="w-full rounded-lg mb-4 shadow-lg" alt="Oluşturulan görsel">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p id="imageDescription" class="text-gray-200 mb-2 text-lg font-medium"></p>
+                            <p id="imageSettings" class="text-gray-400 text-sm"></p>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button id="listenButton" class="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors font-semibold">
+                                <i class="fas fa-volume-up mr-2"></i>Dinle
+                            </button>
+                            <button id="downloadButton" class="px-4 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700 transition-colors font-semibold">
+                                <i class="fas fa-download mr-2"></i>İndir
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="errorContainer" class="hidden">
+                <div class="bg-red-900 border border-red-700 text-red-200 px-4 py-3 rounded">
+                    <p id="errorMessage"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let isRecording = false;
+        let mediaRecorder = null;
+        let audioChunks = [];
+
+        // Rastgele seed oluşturma
+        document.getElementById('randomSeedButton').addEventListener('click', () => {
+            document.getElementById('seedInput').value = Math.floor(Math.random() * 2147483647);
+        });
+
+        document.getElementById('micButton').addEventListener('click', async () => {
+            if (!isRecording) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(stream, {
+                        mimeType: 'audio/webm',
+                        audioBitsPerSecond: 128000
+                    });
+                    audioChunks = [];
+
+                    mediaRecorder.ondataavailable = (event) => {
+                        audioChunks.push(event.data);
+                    };
+
+                    mediaRecorder.onstop = async () => {
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                        
+                        // WebM'den WAV'a dönüştürme
+                        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                        const reader = new FileReader();
+                        
+                        reader.onload = async function(e) {
+                            const audioBuffer = await audioContext.decodeAudioData(e.target.result);
+                            const wavBlob = await convertToWav(audioBuffer);
+                            
+                            const formData = new FormData();
+                            formData.append('audio', wavBlob, 'recording.wav');
+
+                            try {
+                                const response = await fetch('/speech-to-text', {
+                                    method: 'POST',
+                                    body: formData
+                                });
+                                const data = await response.json();
+                                if (data.success) {
+                                    document.getElementById('promptInput').value = data.text;
+                                } else {
+                                    showError('Ses tanıma hatası: ' + data.error);
+                                }
+                            } catch (error) {
+                                showError('Ses tanıma işlemi başarısız: ' + error);
+                            }
+                        };
+
+                        reader.readAsArrayBuffer(audioBlob);
+                    };
+
+                    mediaRecorder.start();
+                    isRecording = true;
+                    document.getElementById('micButton').innerHTML = '<i class="fas fa-stop"></i>';
+                    document.getElementById('micButton').classList.add('bg-red-500');
+                } catch (error) {
+                    showError('Mikrofon erişimi hatası: ' + error);
+                }
+            } else {
+                mediaRecorder.stop();
+                isRecording = false;
+                document.getElementById('micButton').innerHTML = '<i class="fas fa-microphone"></i>';
+                document.getElementById('micButton').classList.remove('bg-red-500');
+            }
+        });
+
+        document.getElementById('generateButton').addEventListener('click', async () => {
+            const prompt = document.getElementById('promptInput').value.trim();
+            if (!prompt) {
+                showError('Lütfen bir açıklama girin.');
+                return;
+            }
+
+            showLoading(true);
+            hideError();
+
+            try {
+                const response = await fetch('/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        prompt: prompt,
+                        width: parseInt(document.getElementById('widthInput').value),
+                        height: parseInt(document.getElementById('heightInput').value),
+                        steps: parseInt(document.getElementById('stepsInput').value),
+                        guidance_scale: parseFloat(document.getElementById('guidanceInput').value),
+                        negative_prompt: document.getElementById('negativePromptInput').value,
+                        seed: parseInt(document.getElementById('seedInput').value)
+                    })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    showResult(data.image_path, data.description, data.settings);
+                } else {
+                    showError('Görsel oluşturma hatası: ' + data.error);
+                }
+            } catch (error) {
+                showError('Görsel oluşturma başarısız: ' + error);
+            } finally {
+                showLoading(false);
+            }
+        });
+
+        document.getElementById('listenButton').addEventListener('click', async () => {
+            const description = document.getElementById('imageDescription').textContent;
+            try {
+                const response = await fetch('/text-to-speech', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ text: description })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    const audio = new Audio('data:audio/mp3;base64,' + data.audio);
+                    audio.play();
+                } else {
+                    showError('Ses oluşturma hatası: ' + data.error);
+                }
+            } catch (error) {
+                showError('Ses oluşturma başarısız: ' + error);
+            }
+        });
+
+        // İndirme butonu işlevi
+        document.getElementById('downloadButton').addEventListener('click', () => {
+            const img = document.getElementById('generatedImage');
+            const link = document.createElement('a');
+            link.href = img.src;
+            link.download = 'infinia_' + Date.now() + '.png';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+
+        function showLoading(show) {
+            document.getElementById('loadingSpinner').style.display = show ? 'block' : 'none';
+            document.getElementById('generateButton').disabled = show;
+        }
+
+        function showResult(imagePath, description, settings) {
+            const resultContainer = document.getElementById('resultContainer');
+            const generatedImage = document.getElementById('generatedImage');
+            const imageDescription = document.getElementById('imageDescription');
+            const imageSettings = document.getElementById('imageSettings');
+
+            // Görsel yolunu düzelt
+            generatedImage.src = '/' + imagePath;
+            generatedImage.style.maxWidth = '100%';
+            generatedImage.style.height = 'auto';
+            generatedImage.style.objectFit = 'contain';
+            
+            // Açıklama ve ayarları göster
+            imageDescription.textContent = description;
+            imageSettings.textContent = `Boyut: ${settings.width}x${settings.height} | Adım: ${settings.steps} | Guidance: ${settings.guidance_scale} | Seed: ${settings.seed}`;
+            
+            // Sonuç konteynerini göster
+            resultContainer.style.display = 'block';
+            
+            // Görsel yüklendiğinde scroll
+            generatedImage.onload = () => {
+                resultContainer.scrollIntoView({ behavior: 'smooth' });
+            };
+        }
+
+        function showError(message) {
+            const errorContainer = document.getElementById('errorContainer');
+            const errorMessage = document.getElementById('errorMessage');
+            errorContainer.style.display = 'block';
+            errorMessage.textContent = message;
+        }
+
+        function hideError() {
+            document.getElementById('errorContainer').style.display = 'none';
+        }
+
+        // WAV dönüştürme fonksiyonu
+        function convertToWav(audioBuffer) {
+            const numOfChan = audioBuffer.numberOfChannels;
+            const length = audioBuffer.length * numOfChan * 2;
+            const buffer = new ArrayBuffer(44 + length);
+            const view = new DataView(buffer);
+            const channels = [];
+            let pos = 0;
+            
+            // WAV Header
+            writeString(view, pos, 'RIFF'); pos += 4;
+            view.setUint32(pos, 36 + length, true); pos += 4;
+            writeString(view, pos, 'WAVE'); pos += 4;
+            writeString(view, pos, 'fmt '); pos += 4;
+            view.setUint32(pos, 16, true); pos += 4;
+            view.setUint16(pos, 1, true); pos += 2;
+            view.setUint16(pos, numOfChan, true); pos += 2;
+            view.setUint32(pos, audioBuffer.sampleRate, true); pos += 4;
+            view.setUint32(pos, audioBuffer.sampleRate * 2 * numOfChan, true); pos += 4;
+            view.setUint16(pos, numOfChan * 2, true); pos += 2;
+            view.setUint16(pos, 16, true); pos += 2;
+            writeString(view, pos, 'data'); pos += 4;
+            view.setUint32(pos, length, true); pos += 4;
+            
+            // WAV Data
+            for (let i = 0; i < audioBuffer.numberOfChannels; i++) {
+                channels.push(audioBuffer.getChannelData(i));
+            }
+            
+            while (pos < view.byteLength) {
+                for (let i = 0; i < numOfChan; i++) {
+                    const sample = Math.max(-1, Math.min(1, channels[i][(pos - 44) / 2]));
+                    view.setInt16(pos, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+                    pos += 2;
+                }
+            }
+            
+            return new Blob([buffer], { type: 'audio/wav' });
+        }
+        
+        function writeString(view, offset, string) {
+            for (let i = 0; i < string.length; i++) {
+                view.setUint8(offset + i, string.charCodeAt(i));
+            }
+        }
+    </script>
+</body>
+</html> 
